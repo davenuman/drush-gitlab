@@ -6,7 +6,7 @@
  *
  * To use these commands you need to add two variables to your .drushrc.php for
  * configuration. For example, add these lines:
- * $GLOBALS['gitlab_token'] = 'xxx';
+ * $GLOBALS['gitlab_token'] = 'GiTdrUpal8+usEdrusH';
  * $GLOBALS['gitlab_url'] = 'http://example.com';
  *
  * Get your api token from your gitlab site at /profile/account
@@ -31,6 +31,16 @@ function gitlab_drush_command() {
     'description' => dt('List projects.'),
     'aliases' => array('gl-lp'),
   );
+  $items['gitlab-add-deploy-key'] = array(
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'description' => dt('List projects.'),
+    'options' => array(
+      'pid' => 'The project id.',
+      'title' => 'A name for the key being added.',
+      'filename' => 'The filename of the public key file to add.',
+    ),
+    'aliases' => array('gl-adk'),
+  );
 
   return $items;
 }
@@ -49,47 +59,6 @@ function gitlab_drush_help($section) {
 }
 
 /**
- * Drush command callback.
- */
-function drush_gitlab_create_project($project_name = '') {
-  $post_data = array(
-    'name' => $project_name,
-    // You can also edit these in the project settings page later.
-    'description' => '',
-    'issues_enabled' => FALSE,
-    'wall_enabled' => FALSE,
-    'merge_requests_enabled' => FALSE,
-    'wiki_enabled' => FALSE,
-    'snippets_enabled' => FALSE,
-    'public' => FALSE,
-  );
-
-  $result = _gitlab_api('projects', 'POST', $post_data);
-  // The result should be a json output of the project.
-  drush_print_r($result);
-}
-
-/**
- * Drush command callback.
- */
-function drush_gitlab_list_projects() {
-  $rows = array(
-    array('NAME', 'ssh_url_to_repo', 'web_url'),
-    array('----', '---------------', '-------'),
-  );
-
-  foreach (_gitlab_api('projects') as $project) {
-    $rows[] = array(
-      $project['name'],
-      $project['ssh_url_to_repo'],
-      $project['web_url'],
-    );
-  }
-
-  drush_print_table($rows, TRUE);
-}
-
-/**
  * Simple function that gets config from a global variable.
  *
  * The intention is to create a more robust config later with yaml or simply a
@@ -99,6 +68,9 @@ function drush_gitlab_list_projects() {
  *   The requested configuration value.
  */
 function _gitlab_get_config($key) {
+  if (empty($GLOBALS['gitlab_' . $key])) {
+    drush_die('$GLOBALS[\'gitlab_' . $key . '\'] not defined in .drushrc file.');
+  }
   return $GLOBALS['gitlab_' . $key];
 }
 
@@ -133,4 +105,77 @@ function _gitlab_api($path, $method = 'GET', $post_data = NULL) {
   );
 
   return drush_json_decode($result);
+}
+
+/**
+ * Get the id of the last project added.
+ *
+ * @return int
+ *   The last project id.
+ */
+function _gitlab_get_last_pid() {
+  $ids = array();
+  foreach (_gitlab_api('projects') as $project) {
+    $ids[] = $project['id'];
+  }
+  return max($ids);
+}
+
+/**
+ * Drush command callback for creating projects.
+ */
+function drush_gitlab_create_project($project_name = '') {
+  $post_data = array(
+    'name' => $project_name,
+    // You can also edit these in the project settings page later.
+    'description' => '',
+    'issues_enabled' => FALSE,
+    'wall_enabled' => FALSE,
+    'merge_requests_enabled' => FALSE,
+    'wiki_enabled' => FALSE,
+    'snippets_enabled' => FALSE,
+    'public' => FALSE,
+  );
+
+  $result = _gitlab_api('projects', 'POST', $post_data);
+  // The result should be a json output of the project.
+  drush_print_r($result);
+}
+
+/**
+ * Drush command callback for listing projects.
+ */
+function drush_gitlab_list_projects() {
+  $rows = array(
+    array('NAME', 'ssh url to repo', 'web url'),
+    array('----', '---------------', '-------'),
+  );
+
+  foreach (_gitlab_api('projects') as $project) {
+    $rows[] = array(
+      $project['name'],
+      $project['ssh_url_to_repo'],
+      $project['web_url'],
+    );
+  }
+
+  drush_print_table($rows, TRUE);
+}
+
+/**
+ * Drush command callback for adding deploy keys.
+ */
+function drush_gitlab_add_deploy_key() {
+  $pid = drush_get_option('pid', _gitlab_get_last_pid());
+  $title = drush_get_option('title', gethostname());
+  $filename = drush_get_option('filename', getenv('HOME') . '/.ssh/id_rsa.pub');
+  $post_data = array(
+    'id' => $pid,
+    'title' => $title,
+    'key' => file_get_contents($filename),
+  );
+
+  $result = _gitlab_api('projects/' . $pid . '/keys', 'POST', $post_data);
+
+  drush_print_r($result);
 }
