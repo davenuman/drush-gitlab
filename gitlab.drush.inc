@@ -41,6 +41,21 @@ function gitlab_drush_command() {
     ),
     'aliases' => array('gl-adk'),
   );
+  $items['gitlab-create-user'] = array(
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'description' => dt('Create a new user.'),
+    'arguments' => array(
+      'email' => dt('Email Address.'),
+      'username' => dt('Username.'),
+      'password' => dt('Password.'),
+    ),
+    'aliases' => array('gl-cu'),
+  );
+  $items['gitlab-list-users'] = array(
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'description' => dt('List users.'),
+    'aliases' => array('gl-lu'),
+  );
 
   return $items;
 }
@@ -53,8 +68,14 @@ function gitlab_drush_help($section) {
     case 'drush:gitlab-create-project':
       return dt('Create a new project.');
 
+    case 'drush:gitlab-create-user':
+      return dt('Create a new user.');
+
     case 'drush:gitlab-list-projects':
       return dt('List project to which you have access.');
+
+    case 'drush:gitlab-list-users':
+      return dt('List users.');
   }
 }
 
@@ -178,4 +199,46 @@ function drush_gitlab_add_deploy_key() {
   $result = _gitlab_api('projects/' . $pid . '/keys', 'POST', $post_data);
 
   drush_print_r($result);
+}
+
+/**
+ * Drush command callback for creating users.
+ */
+function drush_gitlab_create_user($email, $username, $password, $name=FALSE) {
+  if (strlen($password) < 8) {
+    drush_log('Password must be at least 8 characters.', 'error');
+    return FALSE;
+  }
+  $post_data = array(
+    'email' => $email,
+    'password' => $password,
+    'username' => $username,
+    'name' => (empty($name) ? $username : $name),
+  );
+  print_r($post_data);
+
+  $result = _gitlab_api('users', 'POST', $post_data);
+  // The result should be a json output of the user.
+  drush_print_r($result);
+}
+
+/**
+ * Drush command callback for listing users.
+ */
+function drush_gitlab_list_users() {
+  $rows = array(
+    array('id', 'NAME', 'Username', 'Email'),
+    array('--', '----', '--------', '-----'),
+  );
+
+  foreach (_gitlab_api('users') as $user) {
+    $rows[] = array(
+      $user['id'],
+      $user['name'],
+      $user['username'],
+      $user['email'],
+    );
+  }
+
+  drush_print_table($rows, TRUE);
 }
