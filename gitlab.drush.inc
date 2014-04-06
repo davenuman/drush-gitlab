@@ -33,13 +33,25 @@ function gitlab_drush_command() {
   );
   $items['gitlab-add-deploy-key'] = array(
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
-    'description' => dt('List projects.'),
+    'description' => dt('Add a deploy key to a project.'),
     'options' => array(
       'pid' => 'The project id.',
       'title' => 'A name for the key being added.',
       'filename' => 'The filename of the public key file to add.',
     ),
     'aliases' => array('gl-adk'),
+  );
+  $items['gitlab-add-user-key'] = array(
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'description' => dt('Add a key to a user.'),
+    'arguments' => array(
+      'id' => dt('The user id.'),
+      'filename' => dt('The filename of the public key file to add.'),
+    ),
+    'options' => array(
+      'title' => dt('A name for the key being added, defaults to the username'),
+    ),
+    'aliases' => array('gl-auk'),
   );
   $items['gitlab-create-user'] = array(
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
@@ -199,6 +211,36 @@ function drush_gitlab_add_deploy_key() {
   $result = _gitlab_api('projects/' . $pid . '/keys', 'POST', $post_data);
 
   drush_print_r($result);
+}
+
+/**
+ * Drush command callback for adding user keys.
+ */
+function drush_gitlab_add_user_key($id, $filename) {
+  $user = _gitlab_api('users/' . $id);
+  if (empty($user)) {
+    drush_log(dt('User not found. Try drush gl-lu to get list of user ids.'), 'error');
+    return FALSE;
+  }
+  $title = drush_get_option('title', $user['username']);
+
+  $post_data = array(
+    'id' => $id,
+    'title' => $title,
+    'key' => file_get_contents($filename),
+  );
+  print_r($post_data);
+
+  $result = _gitlab_api('users/' . $id . '/keys', 'POST', $post_data);
+
+  if (is_array($result)) {
+    drush_log(dt('Key added.'));
+    return TRUE;
+   }
+  else {
+    drush_log(dt('Error adding key.'), 'error');
+    return FALSE;
+  }
 }
 
 /**
