@@ -68,6 +68,16 @@ function gitlab_drush_command() {
     'description' => dt('List users.'),
     'aliases' => array('gl-lu'),
   );
+  $items['gitlab-list-keys'] = array(
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'description' => dt('List ssh keys.'),
+    'options' => array(
+      'id' => dt('If sudo access, list keys for this user id.'),
+      'format' => dt('Display format: table or authorized_keys'),
+    ),
+    'aliases' => array('gl-lk'),
+  );
+
 
   return $items;
 }
@@ -88,6 +98,9 @@ function gitlab_drush_help($section) {
 
     case 'drush:gitlab-list-users':
       return dt('List users.');
+
+    case 'drush:gitlab-list-keys':
+      return dt('List ssh keys.');
   }
 }
 
@@ -125,6 +138,10 @@ function _gitlab_api($path, $method = 'GET', $post_data = NULL) {
   $http = array('method' => $method);
 
   if (!empty($post_data)) {
+    if (!empty($post_data['sudo'])) {
+      $headers[] = 'SUDO: ' . $post_data['sudo'];
+      unset($post_data['sudo']);
+    }
     $json_post = drush_json_encode($post_data);
     $headers[] = 'Content-type: application/json';
     $headers[] = 'Content-length: ' . strlen($json_post);
@@ -283,4 +300,79 @@ function drush_gitlab_list_users() {
   }
 
   drush_print_table($rows, TRUE);
+}
+
+/**
+ * Drush command callback for listing users.
+ */
+function drush_gitlab_list_keys() {
+  $id = drush_get_option('id', FALSE);
+  $key_function = drush_get_option('format', 'table') == 'table' ? '_gitlab_list_keys' : '_gitlab_print_keys';
+
+  if (empty($id)) {
+    $user = _gitlab_api('user');
+    $user['current'] = TRUE;
+    return $key_function(array($user));
+  }
+  else if ($id == 'all') {
+    $users = _gitlab_api('users');
+    return $key_function($users);
+  }
+  else {
+    $user = _gitlab_api('users/' . $id);
+    if (empty($user)) {
+      drush_log(dt('User not found. Try drush gl-lu to get list of user ids.'), 'error');
+      return FALSE;
+    }
+    else {
+      return $key_function(array($user));
+    }
+  }
+
+}
+
+/**
+ * Helper function for listing user keys.
+ */
+function _gitlab_list_keys(array $users) {
+  $rows = array(
+    array('id', 'User', 'Title', 'Key'),
+    array('--', '----', '-----', '---'),
+  );
+
+  foreach ($users as $user) {
+    $keys = !empty($user['current']) ? _gitlab_api('user/keys')
+      : _gitlab_api('user/keys', 'GET', array('sudo' => $user['id']));
+    foreach ($keys as $key) {
+      $key_parts = explode(' ', $key['key']);
+      $key_parts[1] = substr($key_parts[1], 0, 8) . '...' . substr($key_parts[1], -8);
+      $trimkey = implode(' ', $key_parts);
+      $rows[] = array(
+        $key['id'],
+        $user['username'],
+        $key['title'],
+        $trimkey,
+      );
+    }
+  }
+
+  drush_print_table($rows, TRUE);
+  return TRUE;
+}
+
+/**
+ * Print ssh keys formatted for an authorized_keys file.
+ */
+function _gitlab_print_keys(array $users) {
+  foreach ($users as $user) {
+    $keys = !empty($user['current']) ? _gitlab_api('user/keys')
+      : _gitlab_api('user/keys', 'GET', array('sudo' => $user['id']));
+    if (count($keys)) {
+      drush_print("\n## " . $user['username']);
+    }
+    foreach ($keys as $key) {
+      drush_print($key['key']);
+    }
+  }
+  return TRUE;
 }
