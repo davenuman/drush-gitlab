@@ -197,12 +197,13 @@ function drush_gitlab_create_project($project_name = '') {
  */
 function drush_gitlab_list_projects() {
   $rows = array(
-    array('NAME', 'ssh url to repo', 'web url'),
-    array('----', '---------------', '-------'),
+    array('id', 'NAME', 'ssh url to repo', 'web url'),
+    array('--', '----', '---------------', '-------'),
   );
 
   foreach (_gitlab_api('projects') as $project) {
     $rows[] = array(
+      $project['id'],
       $project['name'],
       $project['ssh_url_to_repo'],
       $project['web_url'],
