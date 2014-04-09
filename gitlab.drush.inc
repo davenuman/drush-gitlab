@@ -4,7 +4,7 @@
  * @file
  * This implements a drush command ui for the gitlab api.
  *
- * To use these commands you need to add two variables to your .drushrc.php for
+ * To use these commands you need to add two variables to your .drush/drushrc.php for
  * configuration. For example, add these lines:
  * $GLOBALS['gitlab_token'] = 'GiTdrUpal8+usEdrusH';
  * $GLOBALS['gitlab_url'] = 'http://example.com';
@@ -77,6 +77,15 @@ function gitlab_drush_command() {
     ),
     'aliases' => array('gl-lk'),
   );
+  $items['gitlab-api-get'] = array(
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'description' => dt('Use the api with provided GET path to get raw output.'),
+    'arguments' => array(
+      'path' => dt('The api path to use.'),
+    ),
+    'aliases' => array('gl-get'),
+  );
+
 
 
   return $items;
@@ -376,4 +385,12 @@ function _gitlab_print_keys(array $users) {
     }
   }
   return TRUE;
+}
+
+/**
+ * Use the GET api with provided path.
+ */
+function drush_gitlab_api_get($path) {
+  $result = _gitlab_api($path);
+  drush_print_r($result);
 }
