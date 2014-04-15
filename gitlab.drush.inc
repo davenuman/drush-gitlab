@@ -4,8 +4,8 @@
  * @file
  * This implements a drush command ui for the gitlab api.
  *
- * To use these commands you need to add two variables to your .drush/drushrc.php for
- * configuration. For example, add these lines:
+ * To use these commands you need to add two variables to your
+ * .drush/drushrc.php for configuration. For example, add these lines:
  * $GLOBALS['gitlab_token'] = 'GiTdrUpal8+usEdrusH';
  * $GLOBALS['gitlab_url'] = 'http://example.com';
  *
@@ -85,8 +85,6 @@ function gitlab_drush_command() {
     ),
     'aliases' => array('gl-get'),
   );
-
-
 
   return $items;
 }
@@ -263,7 +261,7 @@ function drush_gitlab_add_user_key($id, $filename) {
   if (is_array($result)) {
     drush_log(dt('Key added.'));
     return TRUE;
-   }
+  }
   else {
     drush_log(dt('Error adding key.'), 'error');
     return FALSE;
@@ -273,7 +271,7 @@ function drush_gitlab_add_user_key($id, $filename) {
 /**
  * Drush command callback for creating users.
  */
-function drush_gitlab_create_user($email, $username, $password, $name=FALSE) {
+function drush_gitlab_create_user($email, $username, $password, $name = FALSE) {
   if (strlen($password) < 8) {
     drush_log('Password must be at least 8 characters.', 'error');
     return FALSE;
@@ -324,7 +322,7 @@ function drush_gitlab_list_keys() {
     $user['current'] = TRUE;
     return $key_function(array($user));
   }
-  else if ($id == 'all') {
+  elseif ($id == 'all') {
     $users = _gitlab_api('users');
     return $key_function($users);
   }
@@ -351,8 +349,8 @@ function _gitlab_list_keys(array $users) {
   );
 
   foreach ($users as $user) {
-    $keys = !empty($user['current']) ? _gitlab_api('user/keys')
-      : _gitlab_api('user/keys', 'GET', array('sudo' => $user['id']));
+    $keys = !empty($user['current']) ? _gitlab_api('user/keys') :
+      _gitlab_api('user/keys', 'GET', array('sudo' => $user['id']));
     foreach ($keys as $key) {
       $key_parts = explode(' ', $key['key']);
       $key_parts[1] = substr($key_parts[1], 0, 8) . '...' . substr($key_parts[1], -8);
@@ -375,8 +373,8 @@ function _gitlab_list_keys(array $users) {
  */
 function _gitlab_print_keys(array $users) {
   foreach ($users as $user) {
-    $keys = !empty($user['current']) ? _gitlab_api('user/keys')
-      : _gitlab_api('user/keys', 'GET', array('sudo' => $user['id']));
+    $keys = !empty($user['current']) ? _gitlab_api('user/keys') :
+      _gitlab_api('user/keys', 'GET', array('sudo' => $user['id']));
     if (count($keys)) {
       drush_print("\n## " . $user['username']);
     }
